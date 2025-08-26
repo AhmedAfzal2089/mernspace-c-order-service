@@ -41,6 +41,22 @@ export class CouponController {
       }
     }
   };
+  verify = async (req: Request, res: Response, next: NextFunction) => {
+    const { code, tenantId } = req.body;
+    // validate the data
+    const coupon = await couponModel.findOne({ code, tenantId });
+    if (!coupon) {
+      const error = createHttpError(400, "Coupon does not exist");
+      return next(error);
+    }
+    // validate expiry;
+    const currentDate = new Date();
+    const couponDate = new Date(coupon.validUpto);
+    if (currentDate <= couponDate) {
+      return res.json({ valid: true, discount: coupon.discount });
+    }
 
+    return res.json({ valid: false, discount: 0 });
+  };
   // todo: Complete CRUD assignment. This will be used in dashboard.
 }
