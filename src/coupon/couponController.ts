@@ -11,24 +11,35 @@ export class CouponController {
     const { title, code, validUpto, discount, tenantId } = req.body;
 
     // todo: add request validation.
-    if ((req as AuthRequest).auth.role !== Roles.ADMIN) {
-      const tenant = (req as AuthRequest).auth.tenant;
-      if (req.body.tenantId !== String(tenant)) {
+    // todo: check if creator is admin or a manger of that restaurant.
+    if ((req as AuthRequest).auth.role === Roles.ADMIN) {
+      const coupon = await couponModel.create({
+        title,
+        code,
+        discount,
+        validUpto,
+        tenantId,
+      });
+      return res.json(coupon);
+    }
+    if ((req as AuthRequest).auth.role === Roles.MANAGER) {
+      const tenant = req.auth.tenant;
+      if (tenantId == tenant) {
+        const coupon = await couponModel.create({
+          title,
+          code,
+          discount,
+          validUpto,
+          tenantId,
+        });
+
+        return res.json(coupon);
+      } else {
         return next(
-          createHttpError(403, "You are not allowed to access this product "),
+          createHttpError(401, "You are not the manager of the restaurnat "),
         );
       }
     }
-    // todo: add logging
-    const coupon = await couponModel.create({
-      title,
-      code,
-      discount,
-      validUpto,
-      tenantId,
-    });
-
-    return res.json(coupon);
   };
 
   // todo: Complete CRUD assignment. This will be used in dashboard.
