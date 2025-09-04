@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
-import { ToppingPricingCache } from "../types";
+import { ToppingPriceCache } from "../types";
 
-const toppingCacheSchama = new mongoose.Schema<ToppingPricingCache>(
+const toppingCacheSchama = new mongoose.Schema<ToppingPriceCache>(
   {
     toppingId: {
       type: String,
