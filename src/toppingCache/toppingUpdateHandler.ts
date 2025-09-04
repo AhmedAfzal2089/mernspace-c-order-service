@@ -10,6 +10,7 @@ export const handleToppingUpdate = async (value: string) => {
     {
       $set: {
         price: topping.price,
+        tenantId: topping.tenantId,
       },
     },
     // upsert is added beacuse we dont have the information of that the product is updated or created
