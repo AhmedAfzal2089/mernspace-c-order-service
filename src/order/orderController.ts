@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import {
   CartItem,
   ProductPricingCache,
@@ -10,9 +10,12 @@ import toppingCacheModel from "../toppingCache/toppingCacheModel";
 import couponModel from "../coupon/couponModel";
 import orderModel from "./orderModel";
 import { OrderStatus, PaymentStatus } from "./orderTypes";
+import idempotencyModel from "../idempotency/idempotencyModel";
+import mongoose from "mongoose";
+import createHttpError from "http-errors";
 
 export class OrderController {
-  create = async (req: Request, res: Response) => {
+  create = async (req: Request, res: Response, next: NextFunction) => {
     const {
       cart,
       couponCode,
@@ -45,22 +48,52 @@ export class OrderController {
     const DELIVERY_CHARGES = 100;
 
     const finalTotal = priceAfterDiscount + taxes + DELIVERY_CHARGES;
-    //todo:Problems...
-    // create a order
-    const newOrder = await orderModel.create({
-      cart,
-      address,
-      comment,
-      customerId,
-      deliveryCharges: DELIVERY_CHARGES,
-      discount: discountAmount,
-      taxes,
-      tenantId,
-      total: finalTotal,
-      paymentMode,
-      orderStatus: OrderStatus.RECEIVED,
-      paymentStatus: PaymentStatus.PENDING,
-    });
+    // even we are sending key in upper case the express server convert it to lower case
+    const idempotencyKey = req.headers["idempotency-key"];
+    const idempotency = await idempotencyModel.findOne({ key: idempotencyKey });
+    let newOrder = idempotency ? [idempotency.response] : [];
+    if (!idempotency) {
+      const session = await mongoose.startSession();
+      await session.startTransaction();
+
+      try {
+        // when using transaction we use have to create an array not object this is why we are passing it
+        newOrder = await orderModel.create(
+          [
+            {
+              cart,
+              address,
+              comment,
+              customerId,
+              deliveryCharges: DELIVERY_CHARGES,
+              discount: discountAmount,
+              taxes,
+              tenantId,
+              total: finalTotal,
+              paymentMode,
+              orderStatus: OrderStatus.RECEIVED,
+              paymentStatus: PaymentStatus.PENDING,
+            },
+          ],
+          { session },
+        );
+        await idempotencyModel.create(
+          [{ key: idempotencyKey, response: newOrder[0] }],
+          { session },
+        );
+
+        await session.commitTransaction();
+      } catch (err) {
+        await session.abortTransaction();
+        await session.endSession();
+        return next(createHttpError(500, err.message));
+      } finally {
+        await session.endSession();
+      }
+    }
+
+    // Payment Processing
+
     return res.json({ newOrder: newOrder });
   };
 
