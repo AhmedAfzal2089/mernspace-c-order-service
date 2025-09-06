@@ -12,9 +12,12 @@ export class StripeGW implements PaymentGW {
   async createSession(options: PaymentOptions) {
     const session = await this.stripe.checkout.sessions.create(
       {
+        //todo:get customer email from database
+        // customer_email:options.email
         metadata: {
           orderId: options.orderId,
         },
+        // billing_address_collection:'required'
         line_items: [
           {
             price_data: {
