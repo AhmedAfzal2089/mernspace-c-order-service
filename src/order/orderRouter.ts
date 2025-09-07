@@ -11,5 +11,5 @@ const broker = createMessageBroker();
 const orderController = new OrderController(paymentGw, broker);
 
 router.post("/", authenticate, asyncWrapper(orderController.create));
-
+router.get("/mine",authenticate,asyncWrapper(orderController.getMine))
 export default router;
