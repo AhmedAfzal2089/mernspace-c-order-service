@@ -148,16 +148,21 @@ export class OrderController {
       : []; // ["orderStatus", "paymentStatus"]
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const projection: any = fields.reduce((acc, field) => {
-      acc[field] = 1;
-      return acc;
-    }, {});
-    projection.customerId = 1;
+    const projection: any = fields.reduce(
+      (acc, field) => {
+        acc[field] = 1;
+        return acc;
+      },
+      { customerId: 1 },
+    );
     // {
     //   orderStatus: 1,
     //   PaymentStatus: 1,
     // }
-    const order = await orderModel.findOne({ _id: orderId }, projection);
+    const order = await orderModel
+      .findOne({ _id: orderId }, projection)
+      .populate("customerId")
+      .exec();
     if (!order) {
       return next(createHttpError(400, "Order does not exists"));
     }
@@ -176,7 +181,7 @@ export class OrderController {
         return next(createHttpError(400, "No customer found"));
       }
       // converting to string because these both are mongoose object id
-      if (order.customerId.toString() === customer._id.toString()) {
+      if (order.customerId._id.toString() === customer._id.toString()) {
         return res.json(order);
       }
     }
