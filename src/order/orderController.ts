@@ -3,6 +3,7 @@ import { Request as AuthRequest } from "express-jwt";
 import {
   CartItem,
   ProductPricingCache,
+  ROLES,
   Topping,
   ToppingPriceCache,
 } from "../types";
@@ -118,6 +119,36 @@ export class OrderController {
     await this.broker.sendMessage("order", JSON.stringify(newOrder));
     //todo:update order document ->paymentId ->sessionId
     return res.json({ paymentUrl: null });
+  };
+  getAll = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { role, tenant: userTenantId } = req.auth;
+    const tenantId = req.query.tenantId;
+    if (role === "customer") {
+      return next(createHttpError(403, "Not Allowed"));
+    }
+    if (role === ROLES.ADMIN) {
+      const filter = {};
+      if (tenantId) {
+        filter["tenantId"] = tenantId;
+      }
+      // todo: VERY IMPORTANT .add pagination
+      //descending order
+      const orders = await orderModel
+        .find(filter,{}, { sort: { createdAt: -1 } })
+        .populate("customerId")
+        .exec();
+      return res.json(orders);
+    }
+    if (role === ROLES.MANAGER) {
+      //descending order
+      const orders = await orderModel
+        .find({ tenantId: userTenantId },{}, { sort: { createdAt: -1 } })
+        .populate("customerId")
+        .exec();
+
+      return res.json(orders);
+    }
+    return next(createHttpError(403, "Not Allowed"));
   };
   getMine = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.auth.sub;
