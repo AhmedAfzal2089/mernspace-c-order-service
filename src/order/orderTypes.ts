@@ -10,13 +10,12 @@ export enum PaymentMode {
 export enum OrderStatus {
   RECEIVED = "received",
   CONFIRMED = "confirmed",
-  PREPARING = "preparing",
-  READY_FOR_DELIVERY = "read_for_delivery",
+  PREPARING = "prepared",
   OUT_FOR_DELIVERY = "out_for_delivery",
   DELIVERED = "delivered",
 }
 
-export enum PaymentStatus {
+export enum PaymentStatus { 
   PENDING = "pending",
   PAID = "paid",
   FAILED = "failed",
