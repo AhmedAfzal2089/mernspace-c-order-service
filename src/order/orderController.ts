@@ -11,7 +11,12 @@ import productCacheModel from "../productCache/productCacheModel";
 import toppingCacheModel from "../toppingCache/toppingCacheModel";
 import couponModel from "../coupon/couponModel";
 import orderModel from "./orderModel";
-import { OrderStatus, PaymentMode, PaymentStatus } from "./orderTypes";
+import {
+  OrderEvents,
+  OrderStatus,
+  PaymentMode,
+  PaymentStatus,
+} from "./orderTypes";
 import idempotencyModel from "../idempotency/idempotencyModel";
 import mongoose from "mongoose";
 import createHttpError from "http-errors";
@@ -104,7 +109,10 @@ export class OrderController {
     // Payment Processing
     //todo:Error handling....
     //todo:Add logging
-
+    const brokerMessage = {
+      event_type: OrderEvents.ORDER_CREATE,
+      data: newOrder[0],
+    };
     if (paymentMode === PaymentMode.CARD) {
       const session = await this.paymentGw.createSession({
         amount: finalTotal,
@@ -113,10 +121,19 @@ export class OrderController {
         currency: "pkr",
         idempotenencyKey: idempotencyKey as string,
       });
-      await this.broker.sendMessage("order", JSON.stringify(newOrder));
+      await this.broker.sendMessage(
+        "order",
+        JSON.stringify(brokerMessage),
+        newOrder[0]._id.toString(),
+      );
       return res.json({ paymentUrl: session.paymentUrl });
     }
-    await this.broker.sendMessage("order", JSON.stringify(newOrder));
+
+    await this.broker.sendMessage(
+      "order",
+      JSON.stringify(brokerMessage),
+      newOrder[0]._id.toString(),
+    );
     //todo:update order document ->paymentId ->sessionId
     return res.json({ paymentUrl: null });
   };
@@ -253,7 +270,16 @@ export class OrderController {
         },
         { new: true },
       );
-      //todo: send message to kafka
+      const brokerMessage = {
+        event_type: OrderEvents.ORDER_STATUS_UPDATE,
+        data: updatedOrder,
+      };
+      //todo:think about message broker fail
+      await this.broker.sendMessage(
+        "order",
+        JSON.stringify(brokerMessage),
+        updatedOrder._id.toString(),
+      );
       return res.json({ _id: updatedOrder._id });
     }
     return next(createHttpError(403, "Not allowed"));
