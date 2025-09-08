@@ -5,12 +5,12 @@ export const handleToppingUpdate = async (value: string) => {
   const topping: ToppingMessage = JSON.parse(value);
   return await toppingCacheModel.updateOne(
     {
-      toppingId: topping.id,
+      toppingId: topping.data.id,
     },
     {
       $set: {
-        price: topping.price,
-        tenantId: topping.tenantId,
+        price: topping.data.price,
+        tenantId: topping.data.tenantId,
       },
     },
     // upsert is added beacuse we dont have the information of that the product is updated or created
